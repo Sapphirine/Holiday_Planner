@@ -1,5 +1,6 @@
 package WebScraper;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -15,6 +16,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
@@ -39,6 +43,8 @@ import org.jsoup.nodes.Entities.EscapeMode;
 import org.jsoup.nodes.Node;
 import org.jsoup.nodes.TextNode;
 import org.jsoup.select.Elements;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class travelblog {
 	private static String urlBase = "http://www.travelblog.org/";
@@ -48,9 +54,11 @@ public class travelblog {
 	private static ScraperUtil su = ScraperUtil.getInstance();
 	private static CharArraySet stopSet = CharArraySet.copy(Version.LUCENE_CURRENT, StandardAnalyzer.STOP_WORDS_SET);
 	private static Configuration config = null;
+	private static Logger logger = LoggerFactory.getLogger(travelblog.class);
 	
-	private static void parseHtml(String blogUrl, String outputFile, String continent, String country, String state, BufferedWriter mapbw) {
+	private static void parseHtml(String blogUrl, Path outputFile, String continent, String country, String state, FSDataOutputStream mapbw, FileSystem fs) {
 		try {
+			logger.info("Extracting: " + blogUrl);
 			HttpClient client = HttpClientBuilder.create().build();
 			HttpGet httpGet = new HttpGet(blogUrl);
 	        HttpResponse response = client.execute(httpGet);
@@ -81,11 +89,13 @@ public class travelblog {
                 buf = su.removeStopWords(text, stopSet);
 	        }
 	        if (buf.length() > 50) {
-	        	mapbw.write("{url:\"" + blogUrl + "\",title: \"" + title + "\",file:\"" + outputFile + "\",continent: \"" + continent + "\","
+	        	mapbw.writeUTF("{url:\"" + blogUrl + "\",title: \"" + title + "\",file:\"" + outputFile + "\",continent: \"" + continent + "\","
 		        		+ "country:\"" + country + "\", state:\"" + state + "\",area:\"" + area + "\"},\n");
-	        	BufferedWriter bw = new BufferedWriter(new FileWriter(outputFile));
-	        	bw.write(buf.toString() + "\n");
-	        	bw.close();
+	        	if (fs.exists(outputFile))
+	        		fs.delete(outputFile);
+	        	FSDataOutputStream fin = fs.create(outputFile);
+	        	fin.writeUTF(buf.toString() + "\n");
+	        	fin.close();
 	        }
 	        EntityUtils.consume(entity);
 		} catch(Exception e) {
@@ -121,9 +131,10 @@ public class travelblog {
 	}
 
 	public static void runOneCountry(String continent, String country) {
-		 HashMap<String, Integer> urlMap = constructUrlMap(continent, country);
+		HashMap<String, Integer> urlMap = constructUrlMap(continent, country);
 		
 		try {
+			FileSystem fs = FileSystem.get(config);
 			String continentDir = blogBaseDir + continent;
 	        su.createHdfsDirectory(config, continentDir);
 			String countryDir = blogBaseDir + continent + "/" + country;
@@ -155,16 +166,18 @@ public class travelblog {
 			
 				String stateDir = blogBaseDir + continent + "/" + country + "/" + state;
 		        su.createHdfsDirectory(config, stateDir);
-				File file = new File(metaBaseDir + continent + "-" + country + "-" + state + "-mapping.json");
-				BufferedWriter bw = new BufferedWriter(new FileWriter(file));
-				bw.write("{data:[");
+				Path file = new Path(metaBaseDir + continent + "-" + country + "-" + state + "-mapping.json");
+				if (fs.exists(file))
+					fs.delete(file);
+				FSDataOutputStream bw = fs.create(file);
+				bw.writeUTF("{data:[");
 				int cnt = 0;
 				for(String blogUrl : urlList) {
 					cnt ++ ;
-					String blogOutput = blogBaseDir + continent + "/" +country + "/" + state + "/blog_" + cnt + ".txt";
-					parseHtml(blogUrl, blogOutput, continent, country, state, bw);
+					Path blogOutput = new Path(blogBaseDir + continent + "/" +country + "/" + state + "/blog_" + cnt + ".txt");
+					parseHtml(blogUrl, blogOutput, continent, country, state, bw, fs);
 				};
-				bw.write("]}");
+				bw.writeUTF("]}");
 				bw.close();
 			}
 		} catch (Exception e) {
@@ -180,7 +193,7 @@ public class travelblog {
 								};
 		stopSet.addAll(Arrays.asList(myStopWords));
 		
-		Configuration config = su.setupHdfsConfig("/opt/hadoop-2.7.3");
+		config = su.setupHdfsConfig("/opt/hadoop-2.7.3");
 		su.createHdfsDirectory(config, blogBaseDir);
 		su.createHdfsDirectory(config, metaBaseDir);
 		
