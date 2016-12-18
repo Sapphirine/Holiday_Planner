@@ -25,8 +25,7 @@ We save blog data in hdfs, so you need to start hadoop before running. We have "
 Our codes are tested in ubuntu environment only.
 
 <b>How to run kmeans-cluster.sh</b><br/>
-It takes 3 parameters, continent, country and state.
-i.e. kmeans-cluster.sh North-America United-States New-York
+It takes 3 parameters, continent, country and state, i.e. kmeans-cluster.sh North-America United-States New-York. <br/>
 The input for continent, country and state needs to match the data directory saved in hdfs.
 
 <b>How to set up elasticsearch</b><br/>
