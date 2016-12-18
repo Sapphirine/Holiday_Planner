@@ -16,7 +16,7 @@ To compile WebScraper java files, you need to include the following jar files in
 * mahout-example-0.12.2-job.jar
 * Apache HttpClient 4.5.2
 
-To compile Clustering java files, you need to include the following jar file in your build path (you can download from jar directory):
+To compile Clustering java files, you need to include the following jar file in your build path (you can download from jars directory):
 * json-20160810.jar
 * mahout-example-0.12.2-job.jar
 
