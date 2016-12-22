@@ -1,8 +1,10 @@
-# Project_holiday
+# Holiday_Planner
 
 This is for course EECS6893 final project.
 
-We implemented a web application to provide easy search for travel blogs based on location and topic.
+Team Members: Ling Lin, Sugandha Goyal
+
+We implemented a web application to provide easy search for travel blogs based on location and topics.
 
 There are 3 parts of codes:
 * FrontEnd - contains all angular JS code, css, elasticsearch code
